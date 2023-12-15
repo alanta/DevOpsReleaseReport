@@ -1,0 +1,76 @@
+trigger:
+- main
+
+pool: Linux
+
+stages:
+
+- stage: Build
+
+  jobs:
+  - job: build
+    displayName: Build app
+
+    steps:
+    
+    - task: UseDotNet@2
+      displayName: Install .NET SDK
+      inputs:
+        packageType: 'sdk'
+        version: '6.0.x'
+        
+    - script: |    
+        dotnet publish -c Release -o "$(Build.ArtifactStagingDirectory)/Client"
+      displayName: Build Blazor frontend
+      workingDirectory: $(System.DefaultWorkingDirectory)/Client
+      
+    - script: |  
+        dotnet publish -c Release -o "$(Build.ArtifactStagingDirectory)/Api"
+      displayName: Build Azure Functions API
+      workingDirectory: $(System.DefaultWorkingDirectory)/Api
+      
+    - task: PublishBuildArtifacts@1
+      displayName: Publish artifacts
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        ArtifactName: 'drop'
+        publishLocation: 'Container'
+
+
+
+- stage: deploy
+  displayName: Deploy
+
+  jobs:
+  - deployment: deploy
+    displayName: Deploy
+    environment: Production
+    variables:
+    # Change the variable group name to match the one in the generated pipeline
+    - group: ReleaseReport
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: none
+          - checkout: none
+
+          - task: DownloadBuildArtifacts@1
+            displayName: Download artifacts
+            inputs:
+              buildType: current
+              downloadType: single
+              artifactName: drop
+              downloadPath: $(System.ArtifactsDirectory)
+
+          - task: AzureStaticWebApp@0
+            displayName: Deploy to production environment
+            inputs:
+              config_file_location: Client
+              app_location: Client/wwwroot
+              api_location: Api
+              skip_app_build: true
+              skip_api_build: true
+              verbose: true
+              azure_static_web_apps_api_token: $(AZURE_STATIC_WEB_APPS_API_TOKEN)
+              workingDirectory: $(System.ArtifactsDirectory)/drop

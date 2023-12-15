@@ -1,0 +1,35 @@
+﻿.workitem-icon-task {
+    color: rgb(242, 203, 29)
+}
+
+.workitem-icon-story {
+    color: rgb(0, 156, 204)
+}
+
+.workitem-icon-bug {
+    color: rgb(204, 41, 61);
+}
+
+.workitem-icon-enabler {
+    color: rgb(0, 100, 58);
+}
+
+.workitem-icon-unknown {
+    color: rgb(90, 90, 90);
+}
+
+.workitem-status-done {
+    color: rgb(51, 153, 51)
+}
+
+.workitem-status-inprogress {
+    color: rgb(0, 122, 204);
+}
+
+.workitem-status-resolved {
+    color: rgb(255, 157, 0);
+}
+
+.workitem-status-other {
+    color: rgb(178, 178, 178);
+}

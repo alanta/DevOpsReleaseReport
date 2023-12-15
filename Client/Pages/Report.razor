@@ -1,0 +1,152 @@
+﻿@page "/"
+@using ReleaseReport.Shared
+@inject BackendService backend;
+
+<PageTitle>Report</PageTitle>
+<div class="container">
+@if (!string.IsNullOrWhiteSpace(error))
+{
+    <div class="alert alert-danger d-flex align-items-center" role="alert">
+        <span class="oi oi-warning" title="Warning" aria-hidden="true"></span>
+        <div>
+            @error
+        </div>
+    </div>
+}
+@if (loading)
+{
+    <div class="spinner-border" role="status">
+        <span class="visually-hidden">Loading...</span> 
+    </div>
+    <p>Please wait, this can take up to a minute.</p>
+}
+else
+{
+    <table class="table table-hover">
+    <tbody>
+    @foreach (var release in Data)
+    {
+        <tr >
+            <th colspan=3>
+                <div class="d-flex w-100 justify-content-between">
+                    <p class="mb-1">@release.Name <a title="Refresh data for this component" href="#" @onclick:preventDefault="true" @onclick="_=>this.RefreshItem(release.Id)"><i class="bi bi-arrow-clockwise"></i></a></p>
+                    <small><a href="@release.Url">@release.Version</a></small>
+                </div>
+            </th>
+        </tr>
+        
+        @foreach (var workItem in release.WorkItems)
+        {
+            <tr>
+                <td>@WorkItemIcon(workItem)<a href="@workItem.Url" target="_blank">@workItem.Id</a></td>
+                <td>@WorkItemStatus(workItem)@workItem.Status</td>
+                <td>@workItem.Description</td>
+            </tr>
+            @if (workItem.Tasks != null)
+            {
+                foreach (var task in workItem.Tasks)
+                {
+                    <tr>
+                        <td class="ps-4">@WorkItemIcon(task)<a href="@task.Url" target="_blank">@task.Id</a></td>
+                        <td>@WorkItemStatus(task)@task.Status</td>
+                        <td>@task.Description</td>
+                    </tr>
+                }
+            }
+        }
+    }
+    </tbody>
+    </table>
+}
+</div>
+@code{
+
+    bool loading = true;
+    string? error = null;
+    Release[] Data = Array.Empty<Release>();
+
+    private RenderFragment<WorkItem> WorkItemIcon = item => __builder =>
+    {
+        var icon = item.Type switch
+        {
+            "Bug" => "bug-fill workitem-icon-bug",
+            "User Story" => "book-half workitem-icon-story",
+            "PBI" => "book-half workitem-icon-story",
+            "Task" => "clipboard-check-fill workitem-icon-task",
+            _ => "question-circle-fill workitem-icon-unknown"
+        };
+
+    <i class="bi bi-@(icon) me-2"></i>;
+    };
+
+    private RenderFragment<WorkItem> WorkItemStatus = item => __builder =>
+    {
+        var classes = item.Status switch
+        {
+            "Done" => "workitem-status-done",
+            "Closed" => "workitem-status-done",
+            "Resolved" => "workitem-status-resolved",
+            "In Progress" => "workitem-status-inprogress",
+            "Active" => "workitem-status-inprogress",
+            "Committed" => "workitem-status-inprogress",
+            _ => "workitem-status-other"
+            };
+
+    <i class="bi bi-circle-fill @(classes) me-2" style="font-size: 0.6em"></i>
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadReport();
+    }
+
+    protected async Task LoadReport()
+    {
+        try
+        {
+            error = null;
+            loading = true;
+            Data = await backend.LoadReport();
+            loading = false;
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            loading = false;
+        }
+
+        StateHasChanged();
+    }
+
+    protected async Task RefreshItem(int id)
+    {
+        if( loading )
+            return;
+        ;
+        try
+        {
+            loading = true;
+            var item = await backend.Refresh(id);
+            loading = false;
+            error = null;
+
+            if (item == null)
+            {
+                // Remove
+                Data = Data.Where(x => x.Id != id).ToArray();
+            }
+            else
+            {
+                // Replace
+                Data = Data.Select(x => x.Id == id ? item : x).ToArray();
+            }
+        }
+        catch(Exception ex)
+        {
+            error = ex.Message;
+            loading = false;
+        }
+
+        StateHasChanged();
+    }
+}
